@@ -116,9 +116,6 @@ local function countBraces(from, to, pairs)
         end
     end
 
-    braces_before = braces_before:reverse()
-    braces_after = braces_after:reverse()
-
     local add_stack = ''
     local remove_stack = ''
 
