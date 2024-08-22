@@ -1,37 +1,9 @@
 -- Finds the range on which we should work.
--- Bases itself on the indent of the current line
+-- Bases itself on the last selection marker and the current position
 local function determinate_search_range()
-    local linenum = vim.fn.nextnonblank(vim.fn.line(".") or 1) or 1
-    local current_indent = vim.fn.indent(linenum)
-    local tabstop = vim.bo.tabstop or 4
-
-    current_indent = current_indent - tabstop * 2
-
-    -- Looking for the first line with the same indent
-    local start_line = linenum
-    while start_line > 0 do
-        local indent = vim.fn.indent(start_line)
-        -- if indent is not 0 and indent is equal to current_indent, we break
-        if indent ~= 0 and indent <= current_indent then
-            break
-        end
-
-        start_line = start_line - 1
-    end
-    start_line = start_line + 1
-
-    -- Looking for the last line with the same indent
-    local end_line = linenum
-    while end_line < vim.fn.line("$") do
-        local indent = vim.fn.indent(end_line)
-        -- if indent is not 0 and indent is equal to current_indent, we break
-        if indent ~= 0 and indent <= current_indent then
-            break
-        end
-
-        end_line = end_line + 1
-    end
-    end_line = end_line - 1
+    -- The start_line is where the [ mark is
+    local start_line = vim.fn.getpos("'[")[2] or 1
+    local end_line = vim.fn.line(".") or 1
 
     return { start_line, end_line }
 end
@@ -73,7 +45,18 @@ local function countBraces(from, to, pairs)
         braces = new_braces
     end
 
-    -- separating the braces before the cursor
+    -- removing opening braces at the end of the line
+    local closing_braces_rx = ""
+    local opening_braces_rx = ""
+    for _, pair in ipairs(pairs) do
+        opening_braces_rx = opening_braces_rx .. pair[1]
+        closing_braces_rx = closing_braces_rx .. pair[2]
+    end
+    braces = braces:gsub("[" .. opening_braces_rx .. "]+$", "")
+    braces = braces:gsub("^[" .. closing_braces_rx .. "]+", "")
+    print(braces)
+
+    -- separating the braces before and after the cursor.
     local cursor_pos = braces:find("⏺")
     local braces_before = braces:sub(1, cursor_pos - 1)
     local braces_after = braces:sub(cursor_pos + 3):reverse()
@@ -188,6 +171,7 @@ local function fix_braces()
     current_line = current_line:reverse()
 
     -- Adding the characters at the end of the current line, before the ';' if there is one
+    add_stack = add_stack:reverse()
     local pos = current_line:find(";")
     if pos then
         current_line = current_line:sub(1, pos - 1) .. add_stack .. current_line:sub(pos)
